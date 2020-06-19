@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+/src/rougier/stippler.py
+/src/rougier/README.md
+/src/rougier/LICENSE.txt
+/data/
