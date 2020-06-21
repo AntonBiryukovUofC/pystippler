@@ -1,5 +1,9 @@
-# pystippler
+# Pystippler
 My attempt to set up a stippling procedure in Python. Inspired (and built on top of) by https://github.com/ReScience-Archives/Rougier-2017
+
+Built using `skimage`, `scikit-learn` and `streamlit`.
+
+![lumi](lumi.gif)
 
 # How to run
 `streamlit run streamlit_stipple.py` will launch an interactive Streamlit webinterface, where you can explore stippling
