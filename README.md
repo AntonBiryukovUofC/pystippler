@@ -13,4 +13,8 @@ with various parameters.
 
 - `streamlit` for running the webapp
 - `altair` for visualization
+- `imageio`, `scikit-image` for image work
+- `scikit-learn` for color space quantization
+- `tqdm` for progress bars
+- `numba` for some speedups
 - others are same as in the `Rougier-2017`
