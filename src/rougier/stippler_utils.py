@@ -1,54 +1,48 @@
-#! /usr/bin/env python3
-# -----------------------------------------------------------------------------
-# Weighted Voronoi Stippler
-# Copyright (2017) Nicolas P. Rougier - BSD license
-#
-# Implementation of:
-#   Weighted Voronoi Stippling, Adrian Secord
-#   Symposium on Non-Photorealistic Animation and Rendering (NPAR), 2002
-# -----------------------------------------------------------------------------
-# Some usage examples
-#
-# stippler.py boots.jpg --save --force --n_point 20000 --n_iter 50
-#                       --pointsize 0.5 2.5 --figsize 8 --interactive
-# stippler.py plant.png --save --force --n_point 20000 --n_iter 50
-#                       --pointsize 0.5 1.5 --figsize 8
-# stippler.py gradient.png --save --force --n_point 5000 --n_iter 50
-#                          --pointsize 1.0 1.0 --figsize 6
-# -----------------------------------------------------------------------------
-# usage: stippler.py [-h] [--n_iter n] [--n_point n] [--epsilon n]
-#                    [--pointsize min,max) (min,max] [--figsize w,h] [--force]
-#                    [--save] [--display] [--interactive]
-#                    image filename
-#
-# Weighted Vororonoi Stippler
-#
-# positional arguments:
-#   image filename        Density image filename
-#
-# optional arguments:
-#   -h, --help            show this help message and exit
-#   --n_iter n            Maximum number of iterations
-#   --n_point n           Number of points
-#   --epsilon n           Early stop criterion
-#   --pointsize (min,max) (min,max)
-#                         Point mix/max size for final display
-#   --figsize w,h         Figure size
-#   --force               Force recomputation
-#   --save                Save computed points
-#   --display             Display final result
-#   --interactive         Display intermediate results (slower)
-# -----------------------------------------------------------------------------
 import os.path
-
-import imageio
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy
 import tqdm
-from scipy.ndimage import zoom
+from skimage.transform import resize
 
 from src.rougier import voronoi
+
+PALETTE = (
+    "#ffea00",
+    "#d80003",
+    "#fc0093",
+    "#cd014a",
+    "#00459d",
+    "#0097e3",
+    "#89cae6",
+    "#0095cf",
+    "#ff7101",
+    "#017939",
+    "#55b829",
+    "#28b4b1",
+    "#655e32",
+    "#5b127b",
+    "#b50581",
+    "#ba5b00",
+    "#68250b",
+    "#45454d",
+    "#b2b3b8",
+    "#000000",
+    "#ffffff"
+)
+
+
+def _check_size(img, max_dim=1000):
+    h, w = img.shape[0], img.shape[1]
+    aspect_ratio = h / w
+    if (h > w) & (h > max_dim):  # Too tall
+        new_h = max_dim
+        new_w = int(new_h / aspect_ratio)
+        img = resize(img, (new_h, new_w))
+    elif (h < w) & (w > max_dim):  # Too wide
+        new_w = max_dim
+        new_h = int(new_w * aspect_ratio)
+        img = resize(img, (new_h, new_w))
+    return img
 
 
 def normalize(D):
@@ -88,22 +82,7 @@ def initialization(n, D):
     return np.array(samples)
 
 
-# Preprocessing of density
-# density = scipy.ndimage.zoom(density, zoom, order=0)
-# # Apply threshold onto image
-# # Any color > threshold will be white
-# density = np.minimum(density, threshold)
-# density = 1.0 - normalize(density)
-
-def stipple(n_point, n_iter, density, force, dat_filename, pdf_filename, png_filename, save=True,
-            pointsize=(1, 10), figsize=10):
-    # filename = args.filename
-    # density = imageio.imread(filename, pilmode='L')
-
-    # We want (approximately) 500 pixels per voronoi region
-    zoom = (n_point * 500) / (density.shape[0] * density.shape[1])
-    zoom = int(round(np.sqrt(zoom)))
-
+def stipple(n_point, n_iter, density, force, dat_filename):
     density = density[::-1, :]
     density_P = density.cumsum(axis=1)
     density_Q = density_P.cumsum(axis=1)
@@ -121,82 +100,9 @@ def stipple(n_point, n_iter, density, force, dat_filename, pdf_filename, png_fil
     xmin, xmax = 0, density.shape[1]
     ymin, ymax = 0, density.shape[0]
     bbox = np.array([xmin, xmax, ymin, ymax])
-    ratio = (xmax - xmin) / (ymax - ymin)
 
     if not os.path.exists(dat_filename) or force:
-        for i in tqdm.trange(n_iter):
+        for _ in tqdm.trange(n_iter):
             regions, points = voronoi.centroids(points, density, density_P, density_Q)
 
-    if save:
-        fig = plt.figure(figsize=(figsize, figsize / ratio),
-                         facecolor="white")
-        ax = fig.add_axes([0, 0, 1, 1], frameon=False)
-        ax.set_xlim([xmin, xmax])
-        ax.set_xticks([])
-        ax.set_ylim([ymin, ymax])
-        ax.set_yticks([])
-        scatter = ax.scatter(points[:, 0], points[:, 1], s=1,
-                             facecolor="k", edgecolor="None")
-        Pi = points.astype(int)
-        X = np.maximum(np.minimum(Pi[:, 0], density.shape[1] - 1), 0)
-        Y = np.maximum(np.minimum(Pi[:, 1], density.shape[0] - 1), 0)
-        sizes = (pointsize[0] +
-                 (pointsize[1] - pointsize[0]) * density[Y, X])
-        scatter.set_offsets(points)
-        scatter.set_sizes(sizes)
-
-        # Save stipple points and tippled image
-        if not os.path.exists(dat_filename) or save:
-            np.save(dat_filename, points)
-            plt.savefig(pdf_filename)
-            plt.savefig(png_filename)
     return density, points, bbox
-
-
-if __name__ == '__main__':
-    filename = '/home/anton/Repos/pystippler/data/obama.png'
-    n_point = 20000
-    n_iter = 2
-    ps = (1, 5)
-    dirname = os.path.dirname(filename)
-    basename = (os.path.basename(filename).split('.'))[0]
-
-    pdf_filename = os.path.join(dirname, basename + "-stipple.pdf")
-    png_filename = os.path.join(dirname, basename + "-stipple.png")
-    dat_filename = os.path.join(dirname, basename + "-stipple.npy")
-
-    # default = {
-    #     "n_point": 5000,
-    #     "n_iter": 50,
-    #     "threshold": 255,
-    #     "force": False,
-    #     "save": False,
-    #     "figsize": 6,
-    #     "display": False,
-    #     "interactive": False,
-    #     "pointsize": (1.0, 1.0),
-    # }
-
-    density = imageio.imread(filename, pilmode='L')
-    # We want (approximately) 500 pixels per voronoi region
-    zoom_lvl = (n_point * 500) / (density.shape[0] * density.shape[1])
-    zoom_lvl = int(round(np.sqrt(zoom_lvl)))
-    density = zoom(density, zoom_lvl, order=0)
-    # Apply threshold onto image
-    # Any color > threshold will be white
-    density = np.minimum(density, 1e6)
-
-    density = 1.0 - normalize(density)
-    density = density[::-1, :]
-    density_new, points, bbox = stipple(n_point=n_point, n_iter=n_iter,
-                                        density=density,
-                                        force=True, dat_filename=dat_filename,
-                                        png_filename=png_filename,
-                                        pdf_filename=pdf_filename,
-                                        pointsize=ps,
-                                        save=False)
-
-    # Plot voronoi regions if you want
-    # for region in vor.filtered_regions:
-    #     vertices = vor.vertices[region, :]
-    #     ax.plot(vertices[:, 0], vertices[:, 1], linewidth=.5, color='.5' )

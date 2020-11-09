@@ -131,3 +131,7 @@ dmypy.json
 /src/rougier/README.md
 /src/rougier/LICENSE.txt
 /data/
+/src/utils/
+/.virtual_documents/
+/images/
+*.jpg
