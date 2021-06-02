@@ -91,7 +91,7 @@ tornado==6.1
 tqdm==4.51.0
 traitlets==5.0.5
 tzlocal==2.1
-urllib3==1.25.11
+urllib3==1.26.5
 validators==0.18.1
 watchdog==0.10.3
 wcwidth==0.2.5
